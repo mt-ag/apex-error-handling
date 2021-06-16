@@ -3,9 +3,10 @@ as
 
   gc_default_message  varchar2(500 char) := 'Something did not work. Reference for further investigation: %0';
   gc_default_language varchar2(10 char)  := 'en';
-  gc_prefix           varchar2(10 char)  := 'MTAG.';
-  gc_default_name     varchar2(255 char) := gc_prefix || 'GENERAL_ERROR';
-  gc_fatal_name       varchar2(255 char) := gc_prefix || 'FATAL_ERROR';
+  gc_schema_as_prefix boolean            := true;
+  gc_add_prefix       varchar2(10 char)  := 'MTAG.';
+  gc_default_name     varchar2(255 char) := gc_add_prefix || 'GENERAL_ERROR';
+  gc_fatal_name       varchar2(255 char) := gc_add_prefix || 'FATAL_ERROR';
 
   procedure create_message
   (
@@ -27,6 +28,29 @@ as
     commit;
   end create_message;
 
+  function extract_column_identifier
+  (
+    pi_ora_sqlerrm in varchar2
+  )
+    return varchar2
+  as
+    l_col_identifier   varchar2(32767);
+    l_identifier_parts apex_t_varchar2;
+    l_return           varchar2(32767);
+  begin
+
+    l_col_identifier := regexp_replace( pi_ora_sqlerrm, '.*\("(.*)"\."(.*)"\."(.*)"\).*', '\1.\2.\3' );
+
+    if gc_schema_as_prefix then
+      l_return := gc_add_prefix || l_col_identifier;
+    else
+      l_identifier_parts := apex_string.split( l_col_identifier, '.' );
+      l_return := gc_add_prefix || l_identifier_parts(2) ||  '.' || l_identifier_parts(3);
+    end if;
+
+    return l_return;
+  end extract_column_identifier;
+
   function get_message_name
   (
     pi_error in apex_error.t_error
@@ -39,10 +63,8 @@ as
     -- ora-01400 cannot insert NULL (no constraint name)
     if pi_error.ora_sqlcode = -1400 then
       l_message_name :=
-        gc_prefix ||
-        substr( pi_error.ora_sqlerrm, regexp_instr(pi_error.ora_sqlerrm, '"', 1, 3) + 1, REGEXP_INSTR(pi_error.ora_sqlerrm, '"', 1, 4) - REGEXP_INSTR(pi_error.ora_sqlerrm, '"', 1, 3) ) || '.' ||
-        substr( pi_error.ora_sqlerrm, regexp_instr(pi_error.ora_sqlerrm, '"', 1, 5) + 1, REGEXP_INSTR(pi_error.ora_sqlerrm, '"', 1, 6) - REGEXP_INSTR(pi_error.ora_sqlerrm, '"', 1, 5) ) ||
-        '.ORA' || to_char( pi_error.ora_sqlcode, 'FM000000')
+        extract_column_identifier( pi_ora_sqlerrm => pi_error.ora_sqlerrm ) ||
+        '.ORA' || to_char(pi_error.ora_sqlcode, 'FM000000')
       ;
 
     -- ora-00001 unique constraint violated
@@ -52,8 +74,8 @@ as
     -- ora-02292 children exist
     elsif pi_error.ora_sqlcode in (-1, -2091, -2290, -2291, -2292) then
       l_message_name :=
-        gc_prefix ||
-        apex_error.extract_constraint_name( p_error => pi_error , p_include_schema  => false ) || 
+        gc_add_prefix ||
+        apex_error.extract_constraint_name( p_error => pi_error , p_include_schema  => gc_schema_as_prefix ) || 
         '.ORA' || to_char( pi_error.ora_sqlcode, 'FM000000')
       ;
     else
