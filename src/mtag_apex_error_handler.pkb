@@ -61,7 +61,7 @@ as
   begin
 
     -- ora-01400 cannot insert NULL (no constraint name)
-    if pi_error.ora_sqlcode = -1400 then
+    if pi_error.ora_sqlcode in (-1400, -1407) then
       l_message_name :=
         extract_column_identifier( pi_ora_sqlerrm => pi_error.ora_sqlerrm ) ||
         '.ORA' || to_char(pi_error.ora_sqlcode, 'FM000000')
