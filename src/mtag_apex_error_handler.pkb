@@ -39,7 +39,7 @@ as
     l_return           varchar2(32767);
   begin
 
-    l_col_identifier := regexp_replace( pi_ora_sqlerrm, '.*\("(.*)"\."(.*)"\."(.*)"\).*', '\1.\2.\3' );
+    l_col_identifier := regexp_replace( pi_ora_sqlerrm, '.*\("(.*)"\."(.*)"\."(.*)"\).*', '\1.\2.\3', 1, 0, 'n' );
 
     if gc_schema_as_prefix then
       l_return := gc_add_prefix || l_col_identifier;
