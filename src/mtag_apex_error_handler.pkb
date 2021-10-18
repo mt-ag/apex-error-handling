@@ -110,6 +110,10 @@ as
         ;
         l_error_result.additional_info := null;
       end if;
+    -- apex validation errors can have no ora_sqlcode
+    -- should use their message
+    elsif p_error.ora_sqlcode is null then
+      null;
     else
       l_error_result.display_location :=
         case
