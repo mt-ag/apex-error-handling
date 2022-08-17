@@ -7,6 +7,14 @@ as
   gc_add_prefix       varchar2(10 char)  := 'MTAG.';
   gc_default_name     varchar2(255 char) := gc_add_prefix || 'GENERAL_ERROR';
   gc_fatal_name       varchar2(255 char) := gc_add_prefix || 'FATAL_ERROR';
+  gc_tech_error4devs  boolean            := true;
+
+  function user_is_developer
+    return boolean
+  as
+  begin
+    return apex_application.g_edit_cookie_session_id is not null;
+  end user_is_developer;
 
   procedure create_message
   (
@@ -154,6 +162,14 @@ as
         );
       end if;
     end if;    
+
+    -- if user has an apex developer session (dev toolbar), also show the original technical error message
+    if gc_tech_error4devs and user_is_developer then
+      l_error_result.message := l_error_result.message || '<br><br>=== Dev only ===<br>' || p_error.message;
+      if p_error.message != p_error.additional_info then
+        l_error_result.message := l_error_result.message || '<br>' || p_error.additional_info;
+      end if;
+    end if;
 
     return l_error_result;
   end handle_error;
